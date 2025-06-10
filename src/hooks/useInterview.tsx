@@ -68,6 +68,13 @@ export function useInterview() {
     try {
       setState(prev => ({ ...prev, error: null }))
 
+      // End any active conversations first to avoid concurrent conversation limits
+      try {
+        await tavusService.current.endAllActiveConversations()
+      } catch (error) {
+        console.warn('Could not end active conversations:', error)
+      }
+
       // Generate unique room name
       const roomName = `interview-${userId}-${Date.now()}`
       const participantName = `user-${userId}`
