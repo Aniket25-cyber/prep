@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
     // Generate LiveKit access token
     const token = new AccessToken(livekitApiKey, livekitApiSecret, {
       identity: participantName,
-      ttl: '1h',
+      ttl: '2h',
     })
 
     token.addGrant({
@@ -93,9 +93,12 @@ Deno.serve(async (req: Request) => {
       roomJoin: true,
       canPublish: true,
       canSubscribe: true,
+      canPublishData: true,
     })
 
     const jwt = await token.toJwt()
+
+    console.log(`Generated token for room: ${roomName}, participant: ${participantName}`)
 
     return new Response(
       JSON.stringify({ 

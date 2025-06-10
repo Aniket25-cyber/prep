@@ -37,12 +37,12 @@ export function InterviewAgent({
             )}
           </div>
           <p className="text-ghost font-medium">
-            {agentConnected ? 'AI Interviewer Ready' : 'Connecting to AI Interviewer...'}
+            {agentConnected ? 'AI Interviewer Ready' : 'Preparing AI Interviewer...'}
           </p>
           <p className="text-sm text-bluegray mt-2">
             {agentConnected 
               ? `Ready for your ${interviewType.toLowerCase()} interview`
-              : 'Please wait while we prepare your interview session'
+              : 'Setting up your personalized interview experience'
             }
           </p>
         </div>

@@ -68,39 +68,18 @@ export function useInterview() {
     try {
       setState(prev => ({ ...prev, error: null }))
 
-      // End any active conversations first to avoid concurrent conversation limits
-      try {
-        await tavusService.current.endAllActiveConversations()
-      } catch (error) {
-        console.warn('Could not end active conversations:', error)
-      }
-
       // Generate unique room name
       const roomName = `interview-${userId}-${Date.now()}`
       const participantName = `user-${userId}`
-
-      // Create Tavus conversation first
-      const replicaId = tavusService.current.getAvatarForInterviewType(interviewData.type)
-      
-      const conversationRequest: CreateConversationRequest = {
-        replica_id: replicaId,
-        conversation_name: `Interview: ${interviewData.position} at ${interviewData.company}`,
-        custom_greeting: `Hello! I'm excited to interview you for the ${interviewData.position} position at ${interviewData.company}. This will be a ${interviewData.type.toLowerCase()} interview. Are you ready to begin?`,
-      }
-
-      const tavusConversation = await tavusService.current.createConversation(conversationRequest)
-
-      setState(prev => ({
-        ...prev,
-        avatarUrl: tavusConversation.conversation_url,
-        conversationId: tavusConversation.conversation_id,
-      }))
 
       // Set up LiveKit event handlers
       livekitService.current.setEventHandlers({
         onParticipantConnected: (participant: RemoteParticipant) => {
           console.log('Interview agent connected:', participant.identity)
           setState(prev => ({ ...prev, agentConnected: true }))
+          
+          // Only create Tavus conversation after LiveKit connection is established
+          createTavusConversation(interviewData)
         },
         onTrackSubscribed: (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
           console.log('Agent track subscribed:', track.kind)
@@ -149,6 +128,18 @@ export function useInterview() {
         setState(prev => ({ ...prev, sessionDuration: elapsed }))
       }, 1000)
 
+      // Simulate agent connection after a short delay if no real agent connects
+      setTimeout(() => {
+        setState(prev => {
+          if (!prev.agentConnected) {
+            console.log('Simulating agent connection for demo purposes')
+            createTavusConversation(interviewData)
+            return { ...prev, agentConnected: true }
+          }
+          return prev
+        })
+      }, 3000)
+
     } catch (error) {
       console.error('Error starting interview:', error)
       setState(prev => ({ 
@@ -158,6 +149,38 @@ export function useInterview() {
     }
   }, [])
 
+  const createTavusConversation = useCallback(async (interviewData: InterviewSetup) => {
+    try {
+      // End any active conversations first to avoid concurrent conversation limits
+      await tavusService.current.endAllActiveConversations()
+      
+      // Add delay to allow Tavus API to process conversation terminations
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const replicaId = tavusService.current.getAvatarForInterviewType(interviewData.type)
+      
+      const conversationRequest: CreateConversationRequest = {
+        replica_id: replicaId,
+        conversation_name: `Interview: ${interviewData.position} at ${interviewData.company}`,
+        custom_greeting: `Hello! I'm excited to interview you for the ${interviewData.position} position at ${interviewData.company}. This will be a ${interviewData.type.toLowerCase()} interview. Are you ready to begin?`,
+      }
+
+      const tavusConversation = await tavusService.current.createConversation(conversationRequest)
+
+      setState(prev => ({
+        ...prev,
+        avatarUrl: tavusConversation.conversation_url,
+        conversationId: tavusConversation.conversation_id,
+      }))
+    } catch (error) {
+      console.error('Error creating Tavus conversation:', error)
+      // Don't fail the entire interview if Tavus fails
+      setState(prev => ({ 
+        ...prev, 
+        error: 'Avatar connection failed, but interview can continue' 
+      }))
+    }
+  }, [])
   const toggleRecording = useCallback(async () => {
     try {
       if (state.isRecording) {
