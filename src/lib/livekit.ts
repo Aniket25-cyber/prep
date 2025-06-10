@@ -1,4 +1,5 @@
 import { Room, RoomEvent, RemoteParticipant, RemoteTrack, RemoteTrackPublication, Track } from 'livekit-client'
+import { AccessToken } from 'livekit-server-sdk'
 import { supabase } from './supabase'
 
 const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL || 'wss://your-livekit-url'
@@ -24,38 +25,29 @@ export class LiveKitService {
 
   async generateToken(roomName: string, participantName: string): Promise<string> {
     try {
-      // Get the current session for authentication
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      // Get LiveKit credentials from environment
+      const apiKey = import.meta.env.VITE_LIVEKIT_API_KEY
+      const apiSecret = import.meta.env.VITE_LIVEKIT_API_SECRET
       
-      if (sessionError || !session) {
-        throw new Error('User not authenticated')
+      if (!apiKey || !apiSecret) {
+        throw new Error('LiveKit API credentials not configured')
       }
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-      if (!supabaseUrl) {
-        throw new Error('Supabase URL not configured')
-      }
-
-      // Request token from secure backend endpoint
-      const response = await fetch(`${supabaseUrl}/functions/v1/livekit-token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          roomName,
-          participantName,
-        }),
+      // Create access token directly on the frontend
+      const token = new AccessToken(apiKey, apiSecret, {
+        identity: participantName,
+        ttl: '10m',
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `Failed to generate token: ${response.statusText}`)
-      }
+      // Grant permissions for the room
+      token.addGrant({
+        room: roomName,
+        roomJoin: true,
+        canPublish: true,
+        canSubscribe: true,
+      })
 
-      const { token } = await response.json()
-      return token
+      return await token.toJwt()
 
     } catch (error) {
       console.error('Error generating LiveKit token:', error)
