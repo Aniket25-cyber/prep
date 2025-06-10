@@ -1,8 +1,6 @@
 import { Room, RoomEvent, RemoteParticipant, RemoteTrack, RemoteTrackPublication, Track } from 'livekit-client'
 import { supabase } from './supabase'
 
-const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL || 'wss://your-livekit-url'
-
 export interface LiveKitConfig {
   room: string
   identity: string
@@ -43,7 +41,7 @@ export class LiveKitService {
 
       if (error) throw error
 
-      return data.token
+      return data
     } catch (error) {
       console.error('Error generating LiveKit token:', error)
       throw error
@@ -86,8 +84,9 @@ export class LiveKitService {
       })
 
       // Generate token and connect
-      const token = await this.generateToken(config.room, config.identity)
-      await this.room.connect(LIVEKIT_URL, token)
+      const tokenData = await this.generateToken(config.room, config.identity)
+      const wsUrl = tokenData.wsUrl || tokenData.url
+      await this.room.connect(wsUrl, tokenData.token)
 
       // Send agent configuration for interview
       await this.configureInterviewAgent(config)
