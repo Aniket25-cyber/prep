@@ -1,5 +1,4 @@
 import { Room, RoomEvent, RemoteParticipant, RemoteTrack, RemoteTrackPublication, Track } from 'livekit-client'
-import { AccessToken } from 'livekit-server-sdk'
 import { supabase } from './supabase'
 
 const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL || 'wss://your-livekit-url'
@@ -25,30 +24,26 @@ export class LiveKitService {
 
   async generateToken(roomName: string, participantName: string): Promise<string> {
     try {
-      // Get LiveKit credentials from environment
-      const apiKey = import.meta.env.VITE_LIVEKIT_API_KEY
-      const apiSecret = import.meta.env.VITE_LIVEKIT_API_SECRET
-      
-      if (!apiKey || !apiSecret) {
-        throw new Error('LiveKit API credentials not configured')
+      // Get the current user session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) {
+        throw new Error('User not authenticated')
       }
 
-      // Create access token directly on the frontend
-      const token = new AccessToken(apiKey, apiSecret, {
-        identity: participantName,
-        ttl: '10m',
+      // Call the Supabase Edge Function to generate the token securely
+      const { data, error } = await supabase.functions.invoke('livekit-token', {
+        body: {
+          room: roomName,
+          identity: participantName,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       })
 
-      // Grant permissions for the room
-      token.addGrant({
-        room: roomName,
-        roomJoin: true,
-        canPublish: true,
-        canSubscribe: true,
-      })
+      if (error) throw error
 
-      return await token.toJwt()
-
+      return data.token
     } catch (error) {
       console.error('Error generating LiveKit token:', error)
       throw error
