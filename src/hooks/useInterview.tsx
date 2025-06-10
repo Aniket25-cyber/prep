@@ -35,13 +35,15 @@ export function useInterview() {
 
   const [conversationMessages, setConversationMessages] = useState<ConversationMessage[]>([])
   
-  const livekitService = useRef<LiveKitService>(new LiveKitService())
+  const livekitService = useRef<LiveKitService | null>(null)
   const tavusService = useRef<TavusService>(new TavusService())
   const sessionTimer = useRef<NodeJS.Timeout | null>(null)
   const startTime = useRef<number>(0)
 
-  // Cleanup on unmount
+  // Initialize LiveKit service after component mounts
   useEffect(() => {
+    livekitService.current = new LiveKitService()
+    
     return () => {
       cleanup()
     }
@@ -54,7 +56,9 @@ export function useInterview() {
     }
 
     try {
-      await livekitService.current.disconnect()
+      if (livekitService.current) {
+        await livekitService.current.disconnect()
+      }
       
       if (state.conversationId) {
         await tavusService.current.endConversation(state.conversationId)
@@ -67,6 +71,12 @@ export function useInterview() {
   const startInterview = useCallback(async (interviewData: InterviewSetup, userId: string) => {
     try {
       setState(prev => ({ ...prev, error: null }))
+
+      // Ensure LiveKit service is initialized
+      if (!livekitService.current) {
+        console.log('Initializing LiveKit service...')
+        livekitService.current = new LiveKitService()
+      }
 
       // Generate unique room name
       const roomName = `interview-${userId}-${Date.now()}`
@@ -95,13 +105,6 @@ export function useInterview() {
           }))
         },
       })
-
-      // Connect to LiveKit room
-      // Ensure livekitService is initialized
-      if (!livekitService.current) {
-        console.warn('LiveKit service was null, reinitializing...')
-        livekitService.current = new LiveKitService()
-      }
 
       const livekitConfig: LiveKitConfig = {
         room: roomName,
@@ -187,7 +190,13 @@ export function useInterview() {
       }))
     }
   }, [])
+  
   const toggleRecording = useCallback(async () => {
+    if (!livekitService.current) {
+      console.error('LiveKit service not initialized')
+      return
+    }
+
     try {
       if (state.isRecording) {
         await livekitService.current.disableMicrophone()
@@ -206,6 +215,11 @@ export function useInterview() {
   }, [state.isRecording])
 
   const toggleVideo = useCallback(async () => {
+    if (!livekitService.current) {
+      console.error('LiveKit service not initialized')
+      return
+    }
+
     try {
       if (state.isVideoEnabled) {
         await livekitService.current.disableCamera()
