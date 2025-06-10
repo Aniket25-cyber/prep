@@ -97,6 +97,12 @@ export function useInterview() {
       })
 
       // Connect to LiveKit room
+      // Ensure livekitService is initialized
+      if (!livekitService.current) {
+        console.warn('LiveKit service was null, reinitializing...')
+        livekitService.current = new LiveKitService()
+      }
+
       const livekitConfig: LiveKitConfig = {
         room: roomName,
         identity: participantName,
