@@ -33,8 +33,8 @@ export class LiveKitService {
       // Call the Supabase Edge Function to generate the token securely
       const { data, error } = await supabase.functions.invoke('livekit-token', {
         body: {
-          room: roomName,
-          identity: participantName,
+          roomName: roomName,
+          participantName: participantName,
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
