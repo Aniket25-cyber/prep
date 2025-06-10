@@ -72,6 +72,9 @@ export class TavusService {
       // First, try to end any existing conversations to avoid concurrent limit issues
       await this.endAllActiveConversations()
       
+      // Add delay to allow Tavus API to process conversation terminations
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
       const response = await this.makeRequest('/v2/conversations', {
         method: 'POST',
         body: JSON.stringify(request),
